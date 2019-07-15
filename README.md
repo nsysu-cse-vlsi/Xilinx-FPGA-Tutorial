@@ -403,7 +403,7 @@ Block Diagrame驗證完成後，需要建立由RTL編寫的Top Module
 
 將2條 _Micro-USB to USB_ 的線分別插入 _USB Uart_ 以及 _JTAG/Debug_ (在 _Power_ 跟 _Audio I/O_ 之間)
 
-![zed_board](./image/zed_board.jpg)
+![zed_board](./image/zed_board.JPG)
 
 將 **Bitstream** 檔燒入至 **Zedboard**
 
@@ -500,7 +500,7 @@ int main()
 
 這邊將 _**baseaddr**_ 指定為 _**0x43c0_0000**_ 為實際對上**Slave Port**的 _Bus Address_ ，這項資訊可以在下圖中得知。
 
-![Debug](./image/Debug.png)
+![Debug](./image/Debug.PNG)
 
 運行之後的結果為下圖。
 
