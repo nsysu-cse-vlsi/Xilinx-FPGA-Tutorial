@@ -260,7 +260,7 @@ IP全部設定完成後
 
 >Diagrame &rarr; Add IP &rarr; Zynq UltraScale+ MPSoC
 
-![Add_zynqMP_IP](./image/Add_zynqMP_IP.PNG)
+![Add_zynqMP_IP](./image/Add_ZynqMP_IP.PNG)
 
 >Diagrame &rarr; Add IP &rarr; myip_v1.0
 
