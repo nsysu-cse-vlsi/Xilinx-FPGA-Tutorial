@@ -3,7 +3,7 @@
 ```
 Author : 
     Jyun-Liang, Chen
-    Pin-Lun, Lin
+    Pin-Lun, Lin    #Special thanks!
 ```
 
 ## 1. Outline
@@ -22,10 +22,11 @@ Author :
       - [5.2 Device Tree](#52-device-tree)
       - [5.3 Linux Driver](#53-linux-driver)
       - [5.4 Linux Application](#54-linux-application)
-  - [6 Linux File System](#6-linux-file-system)
+  - [6. Another Linux File System](#6-another-linux-file-system)
       - [6.1 Petalinux設定](#61-petalinux%e8%a8%ad%e5%ae%9a)
       - [6.2 Ubuntu(For ARM-64bit)](#62-ubuntufor-arm-64bit)
       - [6.3 Arch Linux(For Zedboard)](#63-arch-linuxfor-zedboard)
+  - [The End 2019/07/26](#the-end-20190726)
 
 ## 2. Introduction
 
@@ -706,19 +707,20 @@ MODULE_DESCRIPTION
 2. 定義Driver的資料結構，包含所需的資訊、變數等，視需求增減內容
 ```C
 struct test_local {
-	int irq;
-	unsigned long mem_start;
-	unsigned long mem_end;
-	void __iomem *base_addr;
+    int irq;    //If no interrupt feature, this line can be deleted.
+    unsigned long mem_start;
+    unsigned long mem_end;
+    void __iomem *base_addr;
 };
 ```
 
 3. 定義中斷觸發時要執行的任務，若硬體無中斷功能可刪除 (詳細用法另外介紹)
 ```C
+//If no interrupt feature, this can be deleted.
 static irqreturn_t test_irq(int irq, void *lp)
 {
-	printk("test interrupt\n");
-	return IRQ_HANDLED;
+    printk("test interrupt\n");
+    return IRQ_HANDLED;
 }
 ```
 
@@ -726,86 +728,95 @@ static irqreturn_t test_irq(int irq, void *lp)
    
   | 函式                                            |                                               用途                                               |
   | :---------------------------------------------- | :----------------------------------------------------------------------------------------------: |
-  | platform_get_resource(..., IORESOURCE_MEM, ...) |                            讀取Device Tree內IP分配(定義)的記憶體大小                             |
-  | kmalloc                                         | 根據platform_get_resource讀取得到的容量分配**實體連續的記憶體區段**給Driver的資料結構(第2點)使用 |
-  | dev_set_drvdata                                 |                       將platform device的資訊寫入Driver結構內的Device結構                        |
-  | request_mem_region，通知Linux                   |                              Kernel此段記憶體由Linux Driver佔據使用                              |
-  | ioremap                                         |     將原先Device Tree內定義的IP實體記憶體區段映射到kmalloc獲得的Linux Kernel的虛擬記憶體區段     |
+  | platform_get_resource(..., IORESOURCE_MEM, ...) |                            讀取Device Tree內IP分配(定義)的記憶體大小  |
+  | kmalloc                                         | 分配**實體連續的記憶體區段**給Driver的資料結構(第2點)使用 |
+  | dev_set_drvdata                                 |                       將platform device的資訊寫入Driver結構內的Device結構 |
+  | request_mem_region                              |                              通知Linux Kernel此段記憶體由Linux Driver佔據使用 |
+  | ioremap                                         |     將原先Device Tree內定義的IP實體記憶體區段映射到Linux Kernel的虛擬記憶體區段 |
   | platform_get_resource(..., IORESOURCE_IRQ, ...) | 讀取IRQ的編號 |
-  | request_irq | 註冊IRQ編號於Linux Kernel上，並連結至中斷處理函式(第3點) |
-  | error1、2、3 | 當前述函式發生錯誤時會跳躍至各旗標執行釋放資源的任務 |
+  | request_irq                                     | 註冊IRQ編號於Linux Kernel上，並連結至中斷處理函式(第3點)  |
+  | error1、2、3                                    | 當前述函式發生錯誤時會跳躍至各旗標執行釋放資源的任務   |
  
 ```C
 static int test_probe(struct platform_device *pdev)
 {
-	struct resource *r_irq; /* Interrupt resources */
-	struct resource *r_mem; /* IO mem resources */
-	struct device *dev = &pdev->dev;
-	struct test_local *lp = NULL;
+    //If no interrupt feature, this can be deleted.-----
+    struct resource *r_irq; /* Interrupt resources */
+    //--------------------------------------------------
 
-	int rc = 0;
-	dev_info(dev, "Device Tree Probing\n");
-	/* Get iospace for the device */
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem) {
-		dev_err(dev, "invalid address\n");
-		return -ENODEV;
-	}
-	lp = (struct test_local *) kmalloc(sizeof(struct test_local), GFP_KERNEL);
-	if (!lp) {
-		dev_err(dev, "Cound not allocate test device\n");
-		return -ENOMEM;
-	}
-	dev_set_drvdata(dev, lp);
-	lp->mem_start = r_mem->start;
-	lp->mem_end = r_mem->end;
+    struct resource *r_mem; /* IO mem resources */
+    struct device *dev = &pdev->dev;
+    struct test_local *lp = NULL;
 
-	if (!request_mem_region(lp->mem_start,
-				lp->mem_end - lp->mem_start + 1,
-				DRIVER_NAME)) {
-		dev_err(dev, "Couldn't lock memory region at %p\n",
-			(void *)lp->mem_start);
-		rc = -EBUSY;
-		goto error1;
-	}
+    int rc = 0;
+    dev_info(dev, "Device Tree Probing\n");
+    /* Get iospace for the device */
+    r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+    if (!r_mem) {
+        dev_err(dev, "invalid address\n");
+        return -ENODEV;
+    }
+    lp = (struct test_local *) kmalloc(sizeof(struct test_local), GFP_KERNEL);
+    if (!lp) {
+        dev_err(dev, "Cound not allocate test device\n");
+        return -ENOMEM;
+    }
+    dev_set_drvdata(dev, lp);
+    lp->mem_start = r_mem->start;
+    lp->mem_end = r_mem->end;
 
-	lp->base_addr = ioremap(lp->mem_start, lp->mem_end - lp->mem_start + 1);
-	if (!lp->base_addr) {
-		dev_err(dev, "test: Could not allocate iomem\n");
-		rc = -EIO;
-		goto error2;
-	}
+    if (!request_mem_region(lp->mem_start,
+                lp->mem_end - lp->mem_start + 1,
+                DRIVER_NAME)) {
+        dev_err(dev, "Couldn't lock memory region at %p\n",
+            (void *)lp->mem_start);
+        rc = -EBUSY;
+        goto error1;
+    }
 
-	/* Get IRQ for the device */
-	r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!r_irq) {
-		dev_info(dev, "no IRQ found\n");
-		dev_info(dev, "test at 0x%08x mapped to 0x%08x\n",
-			(unsigned int __force)lp->mem_start,
-			(unsigned int __force)lp->base_addr);
-		return 0;
-	}
-	lp->irq = r_irq->start;
-	rc = request_irq(lp->irq, &test_irq, 0, DRIVER_NAME, lp);
-	if (rc) {
-		dev_err(dev, "testmodule: Could not allocate interrupt %d.\n",
-			lp->irq);
-		goto error3;
-	}
+    lp->base_addr = ioremap(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+    if (!lp->base_addr) {
+        dev_err(dev, "test: Could not allocate iomem\n");
+        rc = -EIO;
+        goto error2;
+    }
 
-	dev_info(dev,"test at 0x%08x mapped to 0x%08x, irq=%d\n",
-		(unsigned int __force)lp->mem_start,
-		(unsigned int __force)lp->base_addr,
-		lp->irq);
-	return 0;
+    /* Get IRQ for the device */
+    //If no interrupt feature, this can be deleted.------------------------
+    r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+    if (!r_irq) {
+        dev_info(dev, "no IRQ found\n");
+        dev_info(dev, "test at 0x%08x mapped to 0x%08x\n",
+            (unsigned int __force)lp->mem_start,
+            (unsigned int __force)lp->base_addr);
+        return 0;
+    }
+    lp->irq = r_irq->start;
+    rc = request_irq(lp->irq, &test_irq, 0, DRIVER_NAME, lp);
+    if (rc) {
+        dev_err(dev, "testmodule: Could not allocate interrupt %d.\n",
+            lp->irq);
+        goto error3;
+    }
+
+    dev_info(dev,"test at 0x%08x mapped to 0x%08x, irq=%d\n",
+        (unsigned int __force)lp->mem_start,
+        (unsigned int __force)lp->base_addr,
+        lp->irq);
+    //----------------------------------------------------------------------
+    return 0;
+
+//If no interrupt feature, this can be deleted.-----------------------------
 error3:
-	free_irq(lp->irq, lp);
+    free_irq(lp->irq, lp);
+//--------------------------------------------------------------------------
+
 error2:
-	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+    release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
 error1:
-	kfree(lp);
-	dev_set_drvdata(dev, NULL);
-	return rc;
+    kfree(lp);
+    dev_set_drvdata(dev, NULL);
+    return rc;
 }
 ```
 
@@ -813,14 +824,14 @@ error1:
 ```C
 static int test_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct test_local *lp = dev_get_drvdata(dev);
-	free_irq(lp->irq, lp);
-	iounmap(lp->base_addr);
-	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
-	kfree(lp);
-	dev_set_drvdata(dev, NULL);
-	return 0;
+    struct device *dev = &pdev->dev;
+    struct test_local *lp = dev_get_drvdata(dev);
+    free_irq(lp->irq, lp); //If no interrupt feature, this line can be deleted.
+    iounmap(lp->base_addr);
+    release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+    kfree(lp);
+    dev_set_drvdata(dev, NULL);
+    return 0;
 }
 ```
 
@@ -865,15 +876,295 @@ module_exit(test_exit);
 
 以上為使用platform device所需的基本程式碼，但若要操作Driver則通常會額外使用字元裝置(Char Device)的功能，以下敘述如何添加字元裝置
 
-**TODO**
+1. 首先需於Driver的資料結構內添加字元裝置所需的物件，以第2點的結構為例
+   **(其中的struct device僅供char device，若Driver的資料結構需要紀錄platform device則需要額外再一個設立struct device)**
+```C
+struct test_local {
+    int irq;    //If no interrupt feature, this line can be deleted.
+    unsigned long mem_start;
+    unsigned long mem_end;
+    void __iomem *base_addr;
 
-#### 5.4 Linux Application
+    //Char Device need to add following struct
+    struct device *cdevice_p;   //Char Device
+    struct device *pdevice_p;   //Platform Device
+    dev_t dev_node;
+    struct cdev cdev;
+    struct class *class_p;
+};
+```
 
-**TODO**
+2. 根據需求設定字元裝置需要支援哪些功能，以下僅列出常用功能
+```C
+static long ioctl(struct file *file_p, unsigned int cmd, unsigned long arg) {
+    //Do something...
+
+    /*EXAMPLE   
+    struct my_cnn_local *lp = (struct my_cnn_local *)file_p->private_data;
+
+    switch(cmd) {
+        case 0 :
+            iowrite32(arg, (void __iomem *) (lp->base_addr+0x00));
+            break;
+
+        case 1 :
+            return ioread32((void __iomem *) (lp->base_addr+0x04));
+
+        default :
+            printk("  [error] my-cnn Driver: No Such Command\n");
+            return -1;
+    }
+    return 0;
+    */
+}
+
+static int open(struct inode *ino, struct file *file_p)
+{
+	file_p->private_data = container_of(ino->i_cdev, struct test_local, cdev);
+	return 0;
+}
+
+static int mmap(struct file *file_p, struct vm_area_struct *vma){
+    //Do something...
+
+    /*EXAMPLE
+    struct dma_proxy_channel *pchannel_p = (struct dma_proxy_channel *)file_p->private_data;
+
+    return dma_mmap_coherent(pchannel_p->dma_device_p, vma,
+                        pchannel_p->interface_p, pchannel_p->interface_phys_addr,
+                        vma->vm_end - vma->vm_start);
+    */
+}
+
+//close function can also write in the function of removing platform device
+static struct file_operations dm_fops = {
+    .owner          = THIS_MODULE,
+    .open           = open,
+    .unlocked_ioctl = ioctl,
+    .mmap           = mmap,
+    .close          = close,
+};
+```
+
+3. 設定完字元裝置支援的功能後，將字元裝置掛載到Linux Kernel上
+   
+  | 函式                |                        用途                      |
+  | :------------------ | :---------------------------------------------: |
+  | alloc_chrdev_region | 要求Linux Kernel分配字元裝置所需的編號            |
+  | cdev_init           | 將dm_fops內設定的函式登錄到字元裝置               |
+  | cdev_add            | 將字元裝置登錄到Linux Kernel                      |
+  | class_create        | 於/sys/class創立文件檔                            |
+  | device_create       | 於/dev創立文件檔                                  |
+  | init_error1、2、3   | 當前述函式發生錯誤時會跳躍至各旗標執行釋放資源的任務 |
+
+```C
+static int cdevice_init(struct my_cnn_local *lp)
+{
+	int rc;
+	char device_name[48] = DRIVER_NAME;
+	static struct class *local_class_p = NULL;
+	/* Allocate a character device from the kernel for this driver.
+	 */
+	rc = alloc_chrdev_region(&lp->dev_node, 0, 1, DRIVER_NAME);
+	if (rc) {
+		dev_err(lp->pdevice_p, "unable to get a char device number\n");
+		return rc;
+	}
+	/* Initialize the device data structure before registering the character 
+	 * device with the kernel.
+	 */
+	cdev_init(&lp->cdev, &dm_fops);
+	lp->cdev.owner = THIS_MODULE;
+
+	rc = cdev_add(&lp->cdev, lp->dev_node, 1);
+	if (rc) {
+		dev_err(lp->pdevice_p, "unable to add char device\n");
+		goto init_error1;
+	}
+
+        /* create the device in sysfs which will allow the device node
+	 * in /dev to be created
+	 */
+	if (!local_class_p) {
+		local_class_p = class_create(THIS_MODULE, DRIVER_NAME);
+		if (IS_ERR(lp->pdevice_p->class)) {
+			dev_err(lp->pdevice_p, "unable to create class\n");
+			rc = -1;
+			goto init_error2;
+		}
+	}
+	lp->class_p = local_class_p;
+	/* Create the device node in /dev so the device is accessible
+	 * as a character device
+	 */
+	lp->cdevice_p = device_create(lp->class_p, NULL,
+		lp->dev_node, NULL, DRIVER_NAME);
+	if (IS_ERR(lp->cdevice_p)) {
+		dev_err(lp->cdevice_p, "unable to create the device\n");
+		goto init_error3;
+	}
+	return 0;
+
+init_error3:
+	class_destroy(lp->class_p);
+
+init_error2:
+	cdev_del(&lp->cdev);
+
+init_error1:
+	unregister_chrdev_region(lp->dev_node, 1);
+	return rc;
+}
+```
+
+4. 下列程式為卸載字元裝置
+```C
+static void cdevice_exit(struct my_cnn_local *lp)
+{
+	/* Take everything down in the reverse order
+	 * from how it was created for the char device
+	 */
+	if (lp->cdevice_p) {
+		device_destroy(lp->class_p, lp->dev_node);
+		class_destroy(lp->class_p);
+		cdev_del(&lp->cdev);
+		unregister_chrdev_region(lp->dev_node, 1);
+	}
+}
+```
+
+5. 最後將cdevice_init和cdevice_exit分別插入至test_probe和test_remove
+
+```C
+static int test_probe(struct platform_device *pdev)
+{
+    struct resource *r_irq; /* Interrupt resources */
+    struct resource *r_mem; /* IO mem resources */
+    struct device *dev = &pdev->dev;
+    struct test_local *lp = NULL;
+    int rc = 0;
+
+    //Do something...
+
+    lp->pdevice_p = &pdev->dev;
+    lp->cdevice_p = NULL;
+
+    rc = cdevice_init(lp);
+    if(rc) {
+        dev_err(dev, "Char device initial failed!\n");
+        goto error4;
+    }
+
+    return 0;
+
+error4:
+    cdevice_exit(lp);
+
+    //Do something...
+}
+
+static int test_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct test_local *lp = dev_get_drvdata(dev);
+
+	cdevice_exit(lp);
+
+	free_irq(lp->irq, lp); //If no interrupt feature, this line can be deleted.
+	//Do something...
+}
+```
+
+**NOTE : 所有Linux Driver內的函式宣告前都需加上static**，原因如下
+>Reference : https://stackoverflow.com/questions/14423333/static-functions-in-linux-device-driver
+>
+>Remember than in C everything is addresses. That means you can call a function if you have the address. The kernel has a macro named EXPORT_SYMBOL that does just that. It exports the address of a function so that driver functions can be called without having to place header declarations since those functions are sometimes not know at compile time. In cases like this the static qualifier is just made to ensure that they are only called through this method and not from other files that may include that driver code (in some cases it's not a good idea to include driver code headers and call them directly).
+>
+>EDIT: Since it was pointed out that I did not cover userspace.
+>
+>Driver functions are usually not called through userspace directly (except for x86 implementation of SYSCALL instruction which does some little tricks to save the context switch sometimes). So the static keyword here makes no difference. It only makes a difference in kernel space. As pointed out by @Cong Wang, functions are usually place into a structure of function pointers so that they may be called by simply having structures point to this structure (such as file_ops, schedulers, filesystems, network code, etc...).
 
 ---
 
-## 6 Linux File System
+在Driver撰寫完畢後編譯 (擇一執行即可)
+```sh
+#Build all of project
+petalinux-build
+#Build kernel driver only
+petalinux-build -c <DRIVER_NAME>
+```
+
+編譯後，生成的<DRIVER_NAME>.ko會在<Path_to_Petalinux_Project>/build/tmp/sysroots-components/plnx_zynqmp/<DRIVER_NAME>/lib/modules/4.14.0-xilinx-v2018.3/extra/的目錄內，
+- 若使用Petalinux內建的File System則會自動將Driver匯入，不需做額外動作
+- 若使用其他File System則需將<DRIVER_NAME>.ko自行複製到SD Card內，開機後將Terminal路徑指向<DRIVER_NAME>.ko的目錄下，接著掛載Driver至Linux上，輸入 :
+  ```sh
+  insmod <DRIVER_NAME>.ko
+  ```
+- 移除Driver
+  ```sh
+  rmmod <DRIVER_NAME>
+  ```
+- 觀看目前已掛載那些Driver
+  ```sh
+  lsmod
+  ```
+- 若要確認字元裝置是否有掛載成功，輸入下列指令後尋找是否有該DRIVER的名字出現
+  ```
+  ls /dev
+  ```
+- 若要確認中斷是否有成功註冊至Linux Kernel上，輸入下列指令後尋找是否有該DRIVER的名字出現
+  ```
+  cat /proc/interrupts
+  ```
+
+
+
+#### 5.4 Linux Application
+
+Linux Application撰寫方式與一般的C/C++程式相同
+-  若使用Petalinux內建的File System，需執行下列指令建立Application，建置專案時才會包含在內
+```sh
+petalinux-create -t apps -n <APP_NAME> --enable
+```
+-  若使用其他File System，建議直接在FPGA版上開機後使用Vim編輯和撰寫程式碼，或是事先寫好放入SD Card，再用gcc compiler編譯 (vim、gcc需另外安裝)
+
+以下提供Application的範本僅供參考
+```C
+int main(int argc, char *argv[]) {
+    int my_intr_fd = 0;
+    //Open Char Device
+    my_intr_fd = open("/dev/interrupt-driver", O_RDWR);
+    //Check if char device is opened successfully
+    if (my_intr_fd < 1) {
+		printf("\t\t[error] Unable to open my_intr device file");
+		exit(EXIT_FAILURE);
+	}
+
+    //Using ioctl as example
+    printf("\t\t [info] Interrupt test start\n");
+
+    if(!ioctl(my_intr_fd, READ_READY, Unuse)) {
+        printf("\t\t[error] [%d]Device not ready\n\n", cnt);
+    }
+    else {
+        if(ioctl(my_intr_fd, 0, 1))
+            printf("\t\t[error] [%d] test failed\n\n");
+    }
+
+    printf("\t\t [info] Interrupt test end\n");
+    return 0;
+}
+```
+---
+
+## 6. Another Linux File System
+
+此章節主要描述如何使用非Petalinux內建的File System
+
+目前我們有嘗試過的File System如下三種 :
+- Petalinux內建的Yocto，支援zynq、zynqMP系列的FPGA
+- Ubuntu僅支援zynqMP系列的FPGA
+- Arch Linux確認支援zyqn系列，zynqMP系列不確定
 
 #### 6.1 Petalinux設定
 
@@ -921,6 +1212,23 @@ sudo unsquashfs -f -d /SDCARD/ext4_file_system/ filesystem.squashfs
 結果圖
 ![ubuntu_fs_5](./image/CH6_File_System/ubuntu_fs_5.png)
 
+若要使用UART登入File System，於開機前需修改
+
+**TODO**
+
+安裝完Ubuntu的File System後，於第一次開機後需先設定套件庫
+```sh
+apt -y install software-properties-common dirmngr apt-transport-https lsb-release ca-certificates
+add-apt-repository universe
+apt-get update
+```
+
+若使用固定IP的網路，需修改
+
+**TODO**
+
+
+
 ---------
 #### 6.3 Arch Linux(For Zedboard)
 
@@ -939,3 +1247,14 @@ sync (將尚未寫入硬碟的資料寫入至硬碟中)
 完成圖
 
 ![arch_fs_2](./image/CH6_File_System/arch_fs_2.png)
+
+
+安裝完Arch Linux的File System後，於第一次開機後需先設定套件庫
+```
+pacman-key --init
+pacman-key --populate archlinuxarm
+```
+
+---
+
+## The End 2019/07/26
