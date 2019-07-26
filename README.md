@@ -553,7 +553,7 @@ example：
 /home/m063040083/Desktop/Vivado_Proj/Tutorial/soc_proj/soc_proj.sdk/design_1_wrapper_hw_platform_0
 ```
 
-輸入完後會出現下列畫面，以下列出常修改的設定，**根據修求修改**，不修改可直接Exit
+輸入完後會出現下列畫面，以下列出常修改的設定，**根據需求修改**，不修改可直接Exit
 
   ![Petalinux_Config](./image/Ch5_Petalinux/Petalinux_Config.PNG)
 
@@ -567,7 +567,7 @@ example：
 
     &rarr; 使用Petalinux內建的Yocto選INITRAMFS &rarr; Exit
 
-    &rarr; 使用自己存放在Linux File System的LFS選SD card &rarr; Exit
+    &rarr; 使用自己存放在SD card的Linux File System選SD Card &rarr; Exit
 
     ![Linux_File_System](./image/Ch5_Petalinux/Linux_File_System.PNG)
 
@@ -683,7 +683,7 @@ system-user.dtsi提供使用者修改並覆蓋其他Device Tree內的參數
 
 #### 5.3 Linux Driver
 
-首先建立Driver的範本(建議)
+首先建立Driver的範本 (建議)
 
 ```sh
 cd <Path_to_Petalinux_Project> 
@@ -730,7 +730,7 @@ static irqreturn_t test_irq(int irq, void *lp)
   | :---------------------------------------------- | :----------------------------------------------------------------------------------------------: |
   | platform_get_resource(..., IORESOURCE_MEM, ...) |                            讀取Device Tree內IP分配(定義)的記憶體大小  |
   | kmalloc                                         | 分配**實體連續的記憶體區段**給Driver的資料結構(第2點)使用 |
-  | dev_set_drvdata                                 |                       將platform device的資訊寫入Driver結構內的Device結構 |
+  | dev_set_drvdata                                 |                       將platform device的資訊寫入Driver結構內 |
   | request_mem_region                              |                              通知Linux Kernel此段記憶體由Linux Driver佔據使用 |
   | ioremap                                         |     將原先Device Tree內定義的IP實體記憶體區段映射到Linux Kernel的虛擬記憶體區段 |
   | platform_get_resource(..., IORESOURCE_IRQ, ...) | 讀取IRQ的編號 |
@@ -782,7 +782,7 @@ static int test_probe(struct platform_device *pdev)
     }
 
     /* Get IRQ for the device */
-    //If no interrupt feature, this can be deleted.------------------------
+    //If no interrupt feature, the following can be deleted.------------------------
     r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
     if (!r_irq) {
         dev_info(dev, "no IRQ found\n");
@@ -877,7 +877,7 @@ module_exit(test_exit);
 以上為使用platform device所需的基本程式碼，但若要操作Driver則通常會額外使用字元裝置(Char Device)的功能，以下敘述如何添加字元裝置
 
 1. 首先需於Driver的資料結構內添加字元裝置所需的物件，以第2點的結構為例
-   **(其中的struct device僅供char device，若Driver的資料結構需要紀錄platform device則需要額外再一個設立struct device)**
+   **(建議設立兩個struct device，分別記錄platform和char device的資訊，兩個sturct device之間不可混用)**
 ```C
 struct test_local {
     int irq;    //If no interrupt feature, this line can be deleted.
@@ -942,7 +942,6 @@ static struct file_operations dm_fops = {
     .open           = open,
     .unlocked_ioctl = ioctl,
     .mmap           = mmap,
-    .close          = close,
 };
 ```
 
@@ -955,7 +954,7 @@ static struct file_operations dm_fops = {
   | cdev_add            | 將字元裝置登錄到Linux Kernel                      |
   | class_create        | 於/sys/class創立文件檔                            |
   | device_create       | 於/dev創立文件檔                                  |
-  | init_error1、2、3   | 當前述函式發生錯誤時會跳躍至各旗標執行釋放資源的任務 |
+  | init_error1、2、3   | 當前述函式發生錯誤時會跳躍至各旗標執行釋放資源的工作 |
 
 ```C
 static int cdevice_init(struct my_cnn_local *lp)
@@ -1104,15 +1103,15 @@ petalinux-build -c <DRIVER_NAME>
   ```sh
   rmmod <DRIVER_NAME>
   ```
-- 觀看目前已掛載那些Driver
+- 查看目前已掛載那些Driver
   ```sh
   lsmod
   ```
-- 若要確認字元裝置是否有掛載成功，輸入下列指令後尋找是否有該DRIVER的名字出現
+- 若要確認字元裝置是否有掛載成功，輸入下列指令後尋找是否有該Driver的名字出現
   ```
   ls /dev
   ```
-- 若要確認中斷是否有成功註冊至Linux Kernel上，輸入下列指令後尋找是否有該DRIVER的名字出現
+- 若要確認中斷是否有成功註冊至Linux Kernel上，輸入下列指令後尋找是否有該Driver的名字出現
   ```
   cat /proc/interrupts
   ```
